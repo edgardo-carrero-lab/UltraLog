@@ -17,6 +17,7 @@ use super::racechrono::{RaceChronoChannel, RaceChronoMeta};
 use super::romraider::{RomRaiderChannel, RomRaiderMeta};
 use super::speeduino::{SpeeduinoChannel, SpeeduinoMeta};
 use super::torque::{TorqueChannel, TorqueMeta};
+use super::versatuner::{VersaTunerChannel, VersaTunerMeta};
 use super::woolich::{WoolichChannel, WoolichMeta};
 use crate::adapters::{ChannelCategory, ChannelMetadata, get_channel_metadata};
 
@@ -39,6 +40,7 @@ pub enum Meta {
     RomRaider(RomRaiderMeta),
     Speeduino(SpeeduinoMeta),
     Torque(TorqueMeta),
+    VersaTuner(VersaTunerMeta),
     Woolich(WoolichMeta),
     #[default]
     Empty,
@@ -74,6 +76,7 @@ pub enum Channel {
     RomRaider(RomRaiderChannel),
     Speeduino(SpeeduinoChannel),
     Torque(TorqueChannel),
+    VersaTuner(VersaTunerChannel),
     Woolich(WoolichChannel),
     /// A computed/virtual channel derived from a formula
     Computed(ComputedChannelInfo),
@@ -101,6 +104,7 @@ impl Serialize for Channel {
             Channel::RomRaider(r) => r.serialize(serializer),
             Channel::Speeduino(s) => s.serialize(serializer),
             Channel::Torque(t) => t.serialize(serializer),
+            Channel::VersaTuner(v) => v.serialize(serializer),
             Channel::Woolich(w) => w.serialize(serializer),
             Channel::Computed(c) => c.serialize(serializer),
         }
@@ -126,6 +130,7 @@ impl Channel {
             Channel::RomRaider(r) => r.name.clone(),
             Channel::Speeduino(s) => s.name.clone(),
             Channel::Torque(t) => t.name.clone(),
+            Channel::VersaTuner(v) => v.name.clone(),
             Channel::Woolich(w) => w.name.clone(),
             Channel::Computed(c) => c.name.clone(),
         }
@@ -150,6 +155,7 @@ impl Channel {
             Channel::RomRaider(r) => r.name.clone(),
             Channel::Speeduino(s) => s.name.clone(),
             Channel::Torque(t) => t.name.clone(),
+            Channel::VersaTuner(v) => v.name.clone(),
             Channel::Woolich(w) => w.name.clone(),
             Channel::Computed(c) => format!("computed_{}", c.name),
         }
@@ -173,6 +179,7 @@ impl Channel {
             Channel::RomRaider(_) => "RomRaider".to_string(),
             Channel::Speeduino(_) => "Speeduino/rusEFI".to_string(),
             Channel::Torque(_) => "Torque Pro".to_string(),
+            Channel::VersaTuner(_) => "VersaTuner".to_string(),
             Channel::Woolich(_) => "Woolich".to_string(),
             Channel::Computed(_) => "Computed".to_string(),
         }
@@ -199,6 +206,7 @@ impl Channel {
             Channel::RomRaider(_) => None,
             Channel::Speeduino(_) => None,
             Channel::Torque(_) => None,
+            Channel::VersaTuner(_) => None,
             Channel::Woolich(_) => None,
             Channel::Computed(_) => None,
         };
@@ -228,6 +236,7 @@ impl Channel {
             Channel::RomRaider(_) => None,
             Channel::Speeduino(_) => None,
             Channel::Torque(_) => None,
+            Channel::VersaTuner(_) => None,
             Channel::Woolich(_) => None,
             Channel::Computed(_) => None,
         };
@@ -269,6 +278,7 @@ impl Channel {
             Channel::RomRaider(r) => r.unit(),
             Channel::Speeduino(s) => s.unit(),
             Channel::Torque(t) => &t.unit,
+            Channel::VersaTuner(v) => v.unit(),
             Channel::Woolich(w) => w.unit(),
             Channel::Computed(c) => &c.unit,
         }
@@ -371,6 +381,7 @@ pub enum EcuType {
     RomRaider,
     Speeduino,
     TorquePro,
+    VersaTuner,
     Woolich,
     Unknown,
 }
@@ -397,6 +408,7 @@ impl EcuType {
             EcuType::RomRaider => "RomRaider",
             EcuType::Speeduino => "Speeduino/rusEFI",
             EcuType::TorquePro => "Torque Pro",
+            EcuType::VersaTuner => "VersaTuner",
             EcuType::Woolich => "Woolich",
             EcuType::Unknown => "Unknown",
         }
@@ -425,6 +437,7 @@ impl EcuType {
             // Speeduino and rusEFI share the MLG format and this variant: name the format.
             EcuType::Speeduino => "MLG",
             EcuType::TorquePro => "TRQ",
+            EcuType::VersaTuner => "VT",
             EcuType::Woolich => "WRT",
             EcuType::Unknown => "LOG",
         }

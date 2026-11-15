@@ -5,7 +5,7 @@ use std::path::Path;
 // Import from the library
 use ultralog::parsers::{
     BlueDriver, EcuMaster, EcuType, Emerald, Haltech, Link, Locomotive, MegaSquirt, Mhd, Msl,
-    Parseable, RaceChrono, Speeduino, Torque, Woolich, strip_leading_comment_lines,
+    Parseable, RaceChrono, Speeduino, Torque, VersaTuner, Woolich, strip_leading_comment_lines,
 };
 
 use encoding_rs::{UTF_16BE, UTF_16LE};
@@ -98,6 +98,20 @@ fn main() {
             let parser = Mhd;
             match parser.parse(&contents) {
                 Ok(log) => (EcuType::Mhd, log),
+                Err(e) => {
+                    eprintln!("Parse error: {}", e);
+                    std::process::exit(1);
+                }
+            }
+        } else if VersaTuner::detect(&contents) {
+            println!(
+                "
+Detected: VersaTuner format"
+            );
+            println!("Parsing VersaTuner log...");
+            let parser = VersaTuner;
+            match parser.parse(&contents) {
+                Ok(log) => (EcuType::VersaTuner, log),
                 Err(e) => {
                     eprintln!("Parse error: {}", e);
                     std::process::exit(1);

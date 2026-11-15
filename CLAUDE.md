@@ -469,6 +469,7 @@ The parser system uses a trait-based design for supporting multiple ECU formats:
 - **`parsers/bluedriver.rs`** - BlueDriver OBD-II scan tool CSV parser (UTF-16 with BOM)
 - **`parsers/dynamicefi.rs`** - DynamicEFI EBL WhatsUp CSV parser (modified GM TBI systems)
 - **`parsers/torque.rs`** - Torque Pro trackLog CSV parser (Android OBD-II app; phone GPS + accelerometer + OBD-II/custom PIDs)
+- **`parsers/versatuner.rs`** - VersaTuner (Mazda) native `.vtlog` XML + CSV export parser
 
 Note: `EcuType` also reserves `Aem`, `MaxxEcu`, and `MotEc` variants for formats without an implemented parser yet (no `detect()`/`Parseable` wiring in `app.rs`) — don't assume these are supported just because the enum has a slot for them.
 
@@ -491,6 +492,7 @@ Note: `EcuType` also reserves `Aem`, `MaxxEcu`, and `MotEc` variants for formats
 - BlueDriver (OBD-II scan tool CSV export)
 - DynamicEFI EBL WhatsUp (modified GM TBI CSV export)
 - Torque Pro (Android OBD-II app trackLog CSV)
+- VersaTuner (Mazda MZR/SkyActiv/RX-8: native `.vtlog` + CSV export)
 - Locomotive datalogger (CSV export)
 
 To add a new ECU format:
@@ -649,6 +651,14 @@ preferences convert them.
   unreadable or missing `[chanN]` cannot shift later channels onto the wrong data.
 - **Ign Adv (ID 24) offset is inferred** - `raw * 0.1 - 50` gives 5.5° at idle and 14-17° at
   230 kPa boost. It is not from Emerald documentation.
+
+**VersaTuner parser load-bearing behaviors** (`src/parsers/versatuner.rs`):
+
+- **`.vtlog` channels are numeric PIDs** - names and raw units come from `PID_TABLE`, derived by correlating a `.vtlog` with the CSV export of the same log (r = 1.000; `confirmed: false` marks inferred entries). Unknown PIDs load as `PID n` and are listed in `VersaTunerMeta::unmapped_pids`, never dropped. Table names match the CSV export column names exactly, so formulas and log compare work across both formats.
+- **Each PID has its own timestamps** - channels are merged onto the sorted union of all timestamps with sample-and-hold; rows before a channel's first reading are backfilled with that reading, so lambda never starts at a false `0`.
+- **The VIN is never read** - `.vtlog` stores it in plain text; it must not reach `Meta`, the UI or the MCP server (a test asserts this).
+- **Detection runs first in `dispatch_text_content`** - the CSV export leads with `Time (s)` and would otherwise fall into the RomRaider catch-all; `detect_csv` requires a VersaTuner-only column phrase. `csv_start` skips a BOM that an editor re-encoded into junk (`o;?`).
+- **CSV units are normalised** to what `UnitPreferences` converts: psi/bar -> kPa, mph -> km/h, `AFR gas` -> `AFR`; `Engine RPM` (no unit in the export) -> `rpm`.
 
 **Haltech parser load-bearing behaviors** (`src/parsers/haltech.rs`, added for wall-clock-timestamped exports):
 

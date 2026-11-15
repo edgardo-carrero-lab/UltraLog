@@ -15,6 +15,7 @@ pub mod romraider;
 pub mod speeduino;
 pub mod torque;
 pub mod types;
+pub mod versatuner;
 pub mod woolich;
 
 pub use aim::Aim;
@@ -34,6 +35,7 @@ pub use romraider::RomRaider;
 pub use speeduino::Speeduino;
 pub use torque::Torque;
 pub use types::{Channel, EcuType, Log, Parseable, Value};
+pub use versatuner::VersaTuner;
 pub use woolich::Woolich;
 
 /// Drop a leading block of `#`-prefixed comment lines so the real CSV header

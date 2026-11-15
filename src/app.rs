@@ -23,7 +23,7 @@ use crate::mcp::{DEFAULT_MCP_PORT, McpServerHandle, start_mcp_server};
 use crate::parsers::{
     Aim, BlueDriver, DynamicEfi, EcuMaster, EcuType, Emerald, Haltech, Link, Locomotive,
     MegaSquirt, Mhd, MotorsportElectronics, Msl, Parseable, RaceChrono, RomRaider, Speeduino,
-    Torque, Woolich,
+    Torque, VersaTuner, Woolich,
 };
 use crate::settings::UserSettings;
 use crate::state::{
@@ -730,7 +730,18 @@ impl UltraLogApp {
 
     /// Run the text format detection chain against normalized content.
     fn dispatch_text_content(contents: &str) -> Result<(crate::parsers::Log, EcuType), LoadResult> {
-        if RaceChrono::detect(contents) {
+        if VersaTuner::detect(contents) {
+            // VersaTuner .vtlog (XML) or CSV export. Runs first: its fingerprints are specific,
+            // and its `Time (s)` CSV would otherwise fall through to the RomRaider catch-all.
+            let parser = VersaTuner;
+            match parser.parse(contents) {
+                Ok(l) => Ok((l, EcuType::VersaTuner)),
+                Err(e) => Err(LoadResult::Error(format!(
+                    "Failed to parse VersaTuner file: {}",
+                    e
+                ))),
+            }
+        } else if RaceChrono::detect(contents) {
             // RaceChrono CSV session export detected (banner + Format marker)
             let parser = RaceChrono;
             match parser.parse(contents) {
