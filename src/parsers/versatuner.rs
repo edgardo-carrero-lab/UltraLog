@@ -5,7 +5,8 @@
 //! - **`.vtlog`** — VersaTuner's native log. XML:
 //!   `<Datalog><Version/><Name/><RecordedOn/><Platform/><VIN/><Data><PID ID="n"><Record Time="s" Value="v"/>…`
 //!   Channels carry only a numeric PID; each PID has its own timestamps. Names and units come from
-//!   [`PID_TABLE`]. Unknown PIDs load as `PID n` with no unit, so nothing is dropped.
+//!   the platform's table ([`pid_table`]): PID numbers differ between platforms. Unknown PIDs load
+//!   as `PID n` with no unit, so nothing is dropped.
 //! - **CSV export** (VersaTuner log view, "1, 2, 3, 4" button): `Time (s),Engine RPM,Knock retard (°),…`,
 //!   values in the user's chosen units.
 //!
@@ -134,8 +135,279 @@ pub const PID_TABLE: &[PidInfo] = &[
     },
 ];
 
-pub fn pid_info(id: u32) -> Option<&'static PidInfo> {
-    PID_TABLE.iter().find(|p| p.id == id)
+/// Gen2 (Series II) RX-8, platform `G2_MAZDA_RX8`. PID numbers are per platform: on the RX-8, 19 is
+/// trailing timing and 40 an oil pump pressure, not MAP and injector duty as in [`PID_TABLE`].
+/// Derived from a 48-channel RX-8 log and its CSV export. Throttle PIDs (4, 11, 22, 27) were told
+/// apart by exact value fit, as they all correlate at r ≈ 1. The PIDs that stayed constant (17, 30,
+/// 42, 47, 48, 49, 53 at 0) can't be correlated; 17 follows the Mazdaspeed3 guess.
+pub const PID_TABLE_RX8_G2: &[PidInfo] = &[
+    PidInfo {
+        id: 1,
+        name: "Absolute load",
+        unit: "",
+        confirmed: true,
+    },
+    PidInfo {
+        id: 2,
+        name: "Accelerator pedal position",
+        unit: "%",
+        confirmed: true,
+    },
+    PidInfo {
+        id: 3,
+        name: "Actual equivalence/air to fuel ratio",
+        unit: "λ",
+        confirmed: true,
+    },
+    PidInfo {
+        id: 4,
+        name: "Actual throttle angle",
+        unit: "°",
+        confirmed: true,
+    },
+    PidInfo {
+        id: 5,
+        name: "Desired metering oil pump flow (Center) BETA",
+        unit: "",
+        confirmed: true,
+    },
+    PidInfo {
+        id: 6,
+        name: "Barometric pressure",
+        unit: "kPa",
+        confirmed: true,
+    },
+    PidInfo {
+        id: 7,
+        name: "Control module voltage",
+        unit: "V",
+        confirmed: true,
+    },
+    PidInfo {
+        id: 8,
+        name: "Desired metering oil pump flow (Side) BETA",
+        unit: "",
+        confirmed: true,
+    },
+    PidInfo {
+        id: 9,
+        name: "Desired equivalence/air to fuel ratio",
+        unit: "λ",
+        confirmed: true,
+    },
+    PidInfo {
+        id: 10,
+        name: "Desired engine RPM",
+        unit: "rpm",
+        confirmed: true,
+    },
+    PidInfo {
+        id: 11,
+        name: "Desired throttle position",
+        unit: "%",
+        confirmed: true,
+    },
+    PidInfo {
+        id: 12,
+        name: "Engine coolant temperature",
+        unit: "°C",
+        confirmed: true,
+    },
+    PidInfo {
+        id: 13,
+        name: "Engine RPM",
+        unit: "rpm",
+        confirmed: true,
+    },
+    PidInfo {
+        id: 14,
+        name: "Fuel injection pulse width",
+        unit: "ms",
+        confirmed: true,
+    },
+    PidInfo {
+        id: 16,
+        name: "Intake air temperature",
+        unit: "°C",
+        confirmed: true,
+    },
+    PidInfo {
+        id: 17,
+        name: "Knock retard",
+        unit: "°",
+        confirmed: false,
+    },
+    PidInfo {
+        id: 18,
+        name: "Long term fuel trim",
+        unit: "%",
+        confirmed: true,
+    },
+    PidInfo {
+        id: 19,
+        name: "Ignition timing advance - trailing",
+        unit: "°",
+        confirmed: true,
+    },
+    PidInfo {
+        id: 20,
+        name: "Mass air flow",
+        unit: "g/s",
+        confirmed: true,
+    },
+    PidInfo {
+        id: 21,
+        name: "Mass airflow sensor voltage",
+        unit: "V",
+        confirmed: true,
+    },
+    PidInfo {
+        id: 22,
+        name: "Relative throttle position",
+        unit: "%",
+        confirmed: true,
+    },
+    PidInfo {
+        id: 23,
+        name: "Short term fuel trim (primary sensor)",
+        unit: "%",
+        confirmed: true,
+    },
+    PidInfo {
+        id: 24,
+        name: "Short term fuel trim (secondary sensor)",
+        unit: "%",
+        confirmed: false,
+    },
+    PidInfo {
+        id: 25,
+        name: "Ignition timing advance - leading",
+        unit: "°",
+        confirmed: true,
+    },
+    PidInfo {
+        id: 26,
+        name: "Vehicle speed",
+        unit: "km/h",
+        confirmed: true,
+    },
+    PidInfo {
+        id: 27,
+        name: "Desired throttle angle",
+        unit: "°",
+        confirmed: true,
+    },
+    PidInfo {
+        id: 28,
+        name: "Idle air control",
+        unit: "%",
+        confirmed: true,
+    },
+    // Constant 240 in the reference log, the same as its CSV column (the only one with that value).
+    PidInfo {
+        id: 29,
+        name: "Fuel injection pulse width (Percent) BETA",
+        unit: "%",
+        confirmed: false,
+    },
+    PidInfo {
+        id: 31,
+        name: "Clutch pedal position",
+        unit: "",
+        confirmed: true,
+    },
+    PidInfo {
+        id: 32,
+        name: "Neutral gear status",
+        unit: "",
+        confirmed: true,
+    },
+    PidInfo {
+        id: 33,
+        name: "Auxiliary port valve 1 status",
+        unit: "",
+        confirmed: true,
+    },
+    PidInfo {
+        id: 34,
+        name: "Fan 1 and 2 status",
+        unit: "",
+        confirmed: true,
+    },
+    PidInfo {
+        id: 36,
+        name: "Fuel system status",
+        unit: "",
+        confirmed: true,
+    },
+    PidInfo {
+        id: 37,
+        name: "Secondary shutter valve status BETA",
+        unit: "",
+        confirmed: true,
+    },
+    PidInfo {
+        id: 38,
+        name: "Metering oil pump mode on/off (Center) BETA",
+        unit: "",
+        confirmed: true,
+    },
+    PidInfo {
+        id: 39,
+        name: "Metering oil pump mode on/off (Side) BETA",
+        unit: "",
+        confirmed: false,
+    },
+    PidInfo {
+        id: 40,
+        name: "Metering oil pump desired pressure BETA",
+        unit: "kPa",
+        confirmed: true,
+    },
+    PidInfo {
+        id: 41,
+        name: "Metering oil pump actual pressure BETA",
+        unit: "kPa",
+        confirmed: true,
+    },
+    PidInfo {
+        id: 44,
+        name: "Port air bypass control solenoid valve mode on/off BETA",
+        unit: "",
+        confirmed: true,
+    },
+    // Constant 121, the same as its CSV column (the only one with that value).
+    PidInfo {
+        id: 46,
+        name: "Number of oil control valves open B BETA",
+        unit: "",
+        confirmed: false,
+    },
+    PidInfo {
+        id: 52,
+        name: "Auxiliary port valve 2 status",
+        unit: "",
+        confirmed: true,
+    },
+    PidInfo {
+        id: 54,
+        name: "Catalyst temperature",
+        unit: "°C",
+        confirmed: true,
+    },
+];
+
+/// The PID table for a `.vtlog` `<Platform>`. Other platforms use [`PID_TABLE`] (matched on the
+/// Mazdaspeed3), which is also the fallback for platforms not mapped yet.
+pub fn pid_table(platform: &str) -> &'static [PidInfo] {
+    match platform {
+        "G2_MAZDA_RX8" => PID_TABLE_RX8_G2,
+        _ => PID_TABLE,
+    }
+}
+
+pub fn pid_info(platform: &str, id: u32) -> Option<&'static PidInfo> {
+    pid_table(platform).iter().find(|p| p.id == id)
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -274,7 +546,7 @@ impl VersaTuner {
         let mut columns: Vec<Vec<f64>> = Vec::with_capacity(series.len());
         let mut names_seen: BTreeMap<String, u32> = BTreeMap::new();
         for (id, s) in &series {
-            let (mut name, unit) = match pid_info(*id) {
+            let (mut name, unit) = match pid_info(&meta.platform, *id) {
                 Some(p) => (p.name.to_string(), p.unit.to_string()),
                 None => {
                     meta.unmapped_pids.push(*id);
@@ -454,6 +726,33 @@ mod tests {
         assert_eq!(m.platform, "RX8_SERIES1");
         assert_eq!(m.unmapped_pids, vec![999]);
         assert!(!serde_json::to_string(m).unwrap().contains("FAKEVIN"));
+    }
+
+    #[test]
+    fn pid_names_depend_on_the_platform() {
+        let rx8 = VTLOG
+            .replace("RX8_SERIES1", "G2_MAZDA_RX8")
+            .replace("PID ID=\"3\"", "PID ID=\"19\"");
+        let names = |s: &str| -> Vec<String> {
+            VersaTuner
+                .parse(s)
+                .unwrap()
+                .channels
+                .iter()
+                .map(|c| c.name())
+                .collect()
+        };
+        assert!(names(&rx8).contains(&"Ignition timing advance - trailing".to_string()));
+        let other = VTLOG.replace("PID ID=\"3\"", "PID ID=\"19\"");
+        assert!(names(&other).contains(&"Intake manifold absolute pressure".to_string()));
+        assert_eq!(
+            pid_info("G2_MAZDA_RX8", 40).unwrap().name,
+            "Metering oil pump desired pressure BETA"
+        );
+        assert_eq!(
+            pid_info("G2_MAZDASPEED3", 40).unwrap().name,
+            "Injector duty cycle"
+        );
     }
 
     const CSV: &str = "\u{FEFF}Time (s),Absolute load,Boost pressure (psi),Actual equivalence/air to fuel ratio (λ),Vehicle speed (mph),Engine coolant temperature (°F)\n72.354,0.765,1.0,0.974,10,156\n72.583,0.770,,0.970,11,157\n72.583,9,9,9,9,9\n";
