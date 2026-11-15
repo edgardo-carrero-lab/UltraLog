@@ -98,6 +98,17 @@ fn set_macos_app_name() {
 #[cfg(not(target_os = "macos"))]
 fn set_macos_app_name() {}
 
+/// Existing files among the command-line arguments, made absolute so duplicate detection
+/// (`LoadedFile::path` comparison) matches files later opened through the file dialog.
+fn startup_files_from_args(
+    args: impl Iterator<Item = std::ffi::OsString>,
+) -> Vec<std::path::PathBuf> {
+    args.map(std::path::PathBuf::from)
+        .filter(|p| p.is_file())
+        .map(|p| std::path::absolute(&p).unwrap_or(p))
+        .collect()
+}
+
 fn main() -> eframe::Result<()> {
     // Set up platform-specific configuration before anything else
     set_macos_app_name();
@@ -144,10 +155,21 @@ fn main() -> eframe::Result<()> {
         ..Default::default()
     };
 
+    // Log files passed on the command line (`ultralog a.csv b.vtlog`, or "Open with" from the
+    // OS file manager) are queued for loading once the app exists. Paths that do not exist are
+    // skipped so a stray flag cannot produce a load error at startup.
+    let startup_files = startup_files_from_args(std::env::args_os().skip(1));
+
     // Run the application
     eframe::run_native(
         "UltraLog",
         native_options,
-        Box::new(|cc| Ok(Box::new(UltraLogApp::new(cc)))),
+        Box::new(move |cc| {
+            let mut app = UltraLogApp::new(cc);
+            for path in startup_files {
+                app.start_loading_file(path);
+            }
+            Ok(Box::new(app))
+        }),
     )
 }
